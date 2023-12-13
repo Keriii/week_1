@@ -33,7 +33,7 @@ class Cleaner:
         """
         return df.drop_duplicates()
     
-    def convert_to_datetime(self, df: pd.DataFrame, col:str) -> pd.DataFrame:
+    def convert_to_datetime(self, df: pd.DataFrame, col: list) -> pd.DataFrame:
         """
         convert column to datetime
         """
@@ -62,24 +62,12 @@ class Cleaner:
         totalMising = missingCount.sum()
         
         return round(totalMising / totalCells * 100, 2)
-    
-    def percent_missing_column(self, df: pd.DataFrame, col:str) -> float:
-        """
-        calculate the percentage of missing values for the specified column
-        """
-        try:
-            col_len = len(df[col])
-        except KeyError:
-            print(f"{col} not found")
-        missing_count = df[col].isnull().sum()
-        
-        return round(missing_count / col_len * 100, 2)
-    
+     
     def get_numerical_columns(self, df: pd.DataFrame) -> list:
         """
         get numerical columns
         """
-        return df.select_dtypes(include=['number']).columns.to_list()
+        return df.select_dtypes(include=['float64']).columns.to_list()
     
     def get_categorical_columns(self, df: pd.DataFrame) -> list:    
         """
@@ -87,8 +75,14 @@ class Cleaner:
         """
         return  df.select_dtypes(include=['object','datetime64[ns]']).columns.to_list()
     
-    
-    
+    def impute_zero(self, df: pd.DataFrame, column: list) -> pd.DataFrame:
+        """
+        imputes 0 inplace of NaN for a given columon(s)
+        """
+        df[column] = df[column].fillna(0)
+        
+        return df 
+
     def fill_missing_values_categorical(self, df: pd.DataFrame, method: str) -> pd.DataFrame:
         """
         fill missing values with specified method
@@ -120,12 +114,12 @@ class Cleaner:
             print("Method unknown")
             return df
     
-    def fill_missing_values_numeric(self, df: pd.DataFrame, method: str,columns: list =None) -> pd.DataFrame:
+    def fill_missing_values_numeric(self, df: pd.DataFrame, method: str,columns: list = None) -> pd.DataFrame:
         """
         fill missing values with specified method
         """
         if(columns==None):
-            numeric_columns = self.get_numerical_columns(df)
+            numeric_columns = df.select_dtypes(include=['float64','int64']).columns
         else:
             numeric_columns=columns
         
@@ -212,3 +206,33 @@ class Cleaner:
         df[bytes_data] = df[bytes_data] / megabyte
         
         return df[bytes_data]
+    
+    def missing_values_table(self,df):
+        # Total missing values
+        mis_val = df.isnull().sum()
+
+        # Percentage of missing values
+        mis_val_percent = 100 * df.isnull().sum() / len(df)
+
+        # dtype of missing values
+        mis_val_dtype = df.dtypes
+
+        # Make a table with the results
+        mis_val_table = pd.concat([mis_val, mis_val_percent, mis_val_dtype], axis=1)
+
+        # Rename the columns
+        mis_val_table_ren_columns = mis_val_table.rename(
+        columns = {0 : 'Missing Values', 1 : '% of Total Values', 2: 'Dtype'})
+
+        # Sort the table by percentage of missing descending
+        mis_val_table_ren_columns = mis_val_table_ren_columns[
+            mis_val_table_ren_columns.iloc[:,1] != 0].sort_values(
+        '% of Total Values', ascending=False).round(1)
+
+        # Print some summary information
+        print ("Your selected dataframe has " + str(df.shape[1]) + " columns.\n"      
+            "There are " + str(mis_val_table_ren_columns.shape[0]) +
+            " columns that have missing values.")
+
+        # Return the dataframe with missing information
+        return mis_val_table_ren_columns
