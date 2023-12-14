@@ -156,27 +156,38 @@ class Cleaner:
         standard_scaler = StandardScaler()
         return pd.DataFrame(standard_scaler.fit_transform(df[self.get_numerical_columns(df)]), columns=self.get_numerical_columns(df))
     
-    def handle_outliers(self, df:pd.DataFrame, col:str, method:str ='IQR') -> pd.DataFrame:
+    def detect_outliers(self, df:pd.DataFrame, threshold: int) -> list:
         """
-        Handle Outliers of a specified column using Turkey's IQR method
+        detect the indices of outliers using Z-method 
         """
-        df = df.copy()
-        q1 = df[col].quantile(0.25)
-        q3 = df[col].quantile(0.75)
+        z_scores = df.apply(lambda x: np.abs((x - x.mean()) / x.std()))
+        tr = threshold
+        outliers = np.where(z_scores > tr)
+        outlier_indices = [(df.index[i], df.columns[j]) for i, j in zip(*outliers)]
+        return outlier_indices
         
-        lower_bound = q1 - ((1.5) * (q3 - q1))
-        upper_bound = q3 + ((1.5) * (q3 - q1))
-        if method == 'mode':
-            df[col] = np.where(df[col] < lower_bound, df[col].mode()[0], df[col])
-            df[col] = np.where(df[col] > upper_bound, df[col].mode()[0], df[col])
+
+    def handle_outliers(self, df:pd.DataFrame, indices:list, method:str) -> pd.DataFrame:
+        """
+        Handle Outliers of a specified column using the Z method
+        """
+        if method == 'mean':
+            for idx, col_name in indices:
+                column_mean = df[col_name].mean()
+                df.iloc[idx, df.columns.get_loc(col_name)] = column_mean
         
+        elif method == 'mode':
+            for idx, col_name in indices:
+                column_mode = df[col_name].mode()
+                df.iloc[idx, df.columns.get_loc(col_name)] = column_mode
+
         elif method == 'median':
-            df[col] = np.where(df[col] < lower_bound, df[col].median, df[col])
-            df[col] = np.where(df[col] > upper_bound, df[col].median, df[col])
+            for idx, col_name in indices:
+                column_median = df[col_name].median()
+                df.loc[idx, col_name] = column_median
         else:
-            df[col] = np.where(df[col] < lower_bound, lower_bound, df[col])
-            df[col] = np.where(df[col] > upper_bound, upper_bound, df[col])
-        
+            print("Method unknown")
+    
         return df
     
     def find_agg(self,df:pd.DataFrame, agg_column:str, agg_metric:str, col_name:str, top:int, order=False )->pd.DataFrame:
