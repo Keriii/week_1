@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-class Plots:
+class plots:
     def plot_hist(self,df:pd.DataFrame, column:str, color:str)->None:
         plt.figure(figsize=(12, 7))
         # fig, ax = plt.subplots(1, figsize=(12, 7))
